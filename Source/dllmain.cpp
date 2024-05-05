@@ -33,7 +33,7 @@ extern "C" std::uint32_t textSectionEndMarker;
 
         if (textSectionEndAddress >= textSectionStartAddress)
             return textSectionEndAddress - textSectionStartAddress;
-        assert(false && "Invalid .text section start/end markers. Check your linker...");
+        assert(false && "Invalid .text section start/end markers. Check your linker..");
     }
 #endif
     return 0;
