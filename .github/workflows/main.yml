@@ -1,0 +1,64 @@
+name: Windows
+
+on: 
+  push:
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+  pull_request:
+
+jobs:
+  msbuild:
+    runs-on: windows-2022
+    strategy:
+      matrix:
+        toolset: [ClangCL, MSVC]
+        configuration: [Debug, Release]
+    steps:
+    - uses: actions/checkout@v4
+    - name: Add msbuild to PATH
+      uses: microsoft/setup-msbuild@v2
+    - name: Set toolset
+      if: matrix.toolset == 'ClangCL'
+      run: echo "toolset=/p:PlatformToolset=${{ matrix.toolset }}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+    - name: Build
+      shell: cmd
+      run: msbuild Osiris.sln /p:Platform=x64 /p:Configuration=${{ matrix.configuration }} ${{ env.toolset }}
+
+  cmake:
+    runs-on: windows-2022
+    strategy:
+      matrix:
+        toolset: [ClangCL, MSVC]
+        configuration: [Debug, Release]
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set toolset
+      if: matrix.toolset == 'ClangCL'
+      run: echo "toolset=-T ${{ matrix.toolset }}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+    - name: configure
+      run: cmake -Werror=dev -D BUILD_TESTS=1 -D CMAKE_COMPILE_WARNING_AS_ERROR=1 -A x64 ${{ env.toolset }} -B build
+    - name: build
+      run: cmake --build build --config ${{ matrix.configuration }}
+    - name: run unit tests
+      run: ctest --test-dir build --output-on-failure --schedule-random -j $env:NUMBER_OF_PROCESSORS
+
+  release:
+    name: Create Release
+    runs-on: windows-2022
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: |
+            Changes in this Release
+            - First Change
+            - Second Change
+          draft: false
+          prerelease: false
